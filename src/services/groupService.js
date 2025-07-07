@@ -15,7 +15,7 @@ export const groupService = {
 
   // Get groups by user
   async getGroupsByUser(userId) {
-    const response = await api.get(`/groups/groups/user/${userId}`)
+    const response = await api.get(`/group-members/user/${userId}`)
     return response.data
   },
 

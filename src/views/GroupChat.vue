@@ -7,7 +7,7 @@
         <p class="text-gray-400 mb-4">Tienes {{ availableGroups.length }} grupos disponibles. Selecciona uno para continuar:</p>
         
         <div class="space-y-3">
-          <div v-for="group in availableGroups" :key="group.id" 
+          <div v-for="group in availableGroups" :key="group.group_id" 
                class="p-3 border border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700 transition-colors"
                @click="selectGroup(group)">
             <div class="flex items-center justify-between">
@@ -49,8 +49,8 @@
             <div>
               <h1 class="text-xl font-bold text-white">{{ selectedGroup.name }}</h1>
               <p class="text-gray-400 text-sm">
-                <span :class="websocketStatus === 'connected' ? 'text-green-400' : 'text-red-400'">
-                  {{ websocketStatus === 'connected' ? '🟢 Conectado' : '🔴 Desconectado' }}
+                <span :class="getWebSocketStatusClass()">
+                  {{ getWebSocketStatusText() }}
                 </span>
                 • {{ onlineMembers }} {{ onlineMembers === 1 ? 'miembro' : 'miembros' }} en línea
               </p>
@@ -67,6 +67,15 @@
             <router-link to="/travel-planner" class="btn-secondary text-sm">
               📋 Planner
             </router-link>
+            <button @click="clearRecentMessages" class="btn-secondary text-sm">
+              🧹 Clear Recent
+            </button>
+            <button @click="debugRecentMessages" class="btn-secondary text-sm">
+              🔍 Debug
+            </button>
+            <button @click="() => clearUserRecentMessages(currentUser?.id)" class="btn-secondary text-sm">
+              🧹 Clear My Messages
+            </button>
           </div>
         </div>
       </header>
@@ -211,7 +220,7 @@
               </div>
 
               <!-- Group Typing indicator -->
-              <div v-if="isGroupTyping" class="flex justify-start">
+              <div v-if="typingUsers.size > 0" class="flex justify-start">
                 <div class="flex items-end gap-2">
                   <div class="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-sm font-medium mb-1">
                     💬
@@ -221,6 +230,9 @@
                     <div class="typing-dot"></div>
                     <div class="typing-dot"></div>
                   </div>
+                  <span class="text-gray-400 text-sm ml-2">
+                    {{ Array.from(typingUsers).length === 1 ? 'Alguien está escribiendo...' : `${Array.from(typingUsers).length} personas están escribiendo...` }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -238,11 +250,10 @@
                   type="text"
                   placeholder="Discute con tu grupo sobre el viaje..."
                   class="input-field pr-12"
-                  :disabled="isGroupTyping || websocketStatus !== 'connected'"
                 />
                 <button
                   @click="sendGroupMessage"
-                  :disabled="!groupMessage.trim() || isGroupTyping || websocketStatus !== 'connected'"
+                  :disabled="!groupMessage.trim()"
                   class="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                 >
                   <span class="text-white">📤</span>
@@ -250,7 +261,6 @@
               </div>
               <button
                 @click="generateGroupSuggestion"
-                :disabled="isGroupTyping"
                 class="btn-secondary px-4"
               >
                 💭 Suggest
@@ -293,7 +303,7 @@ const authStore = useAuthStore()
 const aiMessage = ref('')
 const groupMessage = ref('')
 const isAiTyping = ref(false)
-const isGroupTyping = ref(false)
+const typingUsers = ref(new Set()) // Cambiar isGroupTyping por un Set de usuarios escribiendo
 const aiChatContainer = ref(null)
 const groupChatContainer = ref(null)
 const isLoading = ref(true)
@@ -310,6 +320,10 @@ const aiMessages = ref([])
 const groupMessages = ref([])
 const groupMembers = ref([])
 const onlineMembers = ref(0)
+
+// Set para rastrear mensajes recientes y evitar duplicados
+const recentMessages = ref(new Set())
+const MESSAGE_DEDUP_WINDOW = 10000 // 10 segundos (aumentado de 5)
 
 // User colors for avatars
 const userColors = {
@@ -384,6 +398,36 @@ const userAvatars = {
       scrollToBottom(groupChatContainer.value)
     }
 
+    // Función de debug para limpiar mensajes recientes
+    const clearRecentMessages = () => {
+      recentMessages.value.clear()
+      console.log('🧹 Recent messages cleared')
+    }
+
+    // Función para limpiar mensajes recientes de un usuario específico
+    const clearUserRecentMessages = (userId) => {
+      const keysToRemove = []
+      recentMessages.value.forEach(key => {
+        if (key.startsWith(`${userId}-`)) {
+          keysToRemove.push(key)
+        }
+      })
+      
+      keysToRemove.forEach(key => {
+        recentMessages.value.delete(key)
+      })
+      
+      console.log('🧹 Cleared recent messages for user:', userId, 'Keys removed:', keysToRemove.length)
+    }
+
+    // Función de debug para mostrar estado actual
+    const debugRecentMessages = () => {
+      console.log('🔍 Debug - Recent messages:', {
+        size: recentMessages.value.size,
+        messages: Array.from(recentMessages.value),
+        groupMessagesCount: groupMessages.value.length
+      })
+    }
 
 
 // Group selection functions
@@ -395,9 +439,10 @@ const loadUserGroups = async () => {
 
   try {
     isLoading.value = true
+    console.log(currentUser.value)
     const groups = await groupService.getGroupsByUser(currentUser.value.id)
     availableGroups.value = groups
-
+    console.log(groups)
     if (groups.length === 0) {
       // No groups available, redirect to create group or home
       router.push('/')
@@ -424,6 +469,10 @@ const loadUserGroups = async () => {
 const selectGroup = async (group) => {
   selectedGroup.value = group
   showGroupSelection.value = false
+  
+  // Limpiar mensajes recientes al cambiar de grupo
+  recentMessages.value.clear()
+  
   await initializeChat()
 }
 
@@ -442,14 +491,14 @@ const initializeChat = async () => {
 
   try {
     // Load group members
-    const members = await chatService.getGroupMembers(selectedGroup.value.id)
+    const members = await chatService.getGroupMembers(selectedGroup.value.group_id)
     console.log("los intocables", members)
     groupMembers.value = members
 
 
     // Get active connections count
     try {
-      const connections = await chatService.getActiveConnections(selectedGroup.value.id)
+      const connections = await chatService.getActiveConnections(selectedGroup.value.group_id)
       onlineMembers.value = connections.active_connections || 0
     } catch (error) {
       console.log('Could not get active connections, using group members count')
@@ -457,7 +506,7 @@ const initializeChat = async () => {
     }
 
     // Load AI messages
-    const aiMsgs = await chatService.getAIMessagesByGroup(selectedGroup.value.id)
+    const aiMsgs = await chatService.getAIMessagesByGroup(selectedGroup.value.group_id)
     if (aiMsgs.length > 0) {
       aiMessages.value = aiMsgs
     } else {
@@ -469,7 +518,7 @@ const initializeChat = async () => {
     }
 
     // Load group messages
-    const groupMsgs = await chatService.getMessagesByGroup(selectedGroup.value.id)
+    const groupMsgs = await chatService.getMessagesByGroup(selectedGroup.value.group_id)
     groupMessages.value = groupMsgs
 
     // Connect to WebSocket
@@ -515,7 +564,8 @@ const initializeChat = async () => {
 const connectWebSocket = () => {
   if (!selectedGroup.value || !currentUser.value) return
 
-  websocketService.connect(selectedGroup.value.id)
+  // Usar group_id en lugar de id
+  websocketService.connect(selectedGroup.value.group_id)
   
   websocketService.on('connected', () => {
     websocketStatus.value = 'connected'
@@ -527,34 +577,179 @@ const connectWebSocket = () => {
     console.log('WebSocket disconnected')
   })
 
+  websocketService.on('error', (error) => {
+    console.error('WebSocket error:', error)
+    websocketStatus.value = 'error'
+  })
+
+  websocketService.on('send_error', (error) => {
+    console.error('WebSocket send error:', error)
+    // Mostrar notificación al usuario
+    alert('Error al enviar mensaje. Intentando reconectar...')
+  })
+
+  websocketService.on('max_reconnect_attempts_reached', () => {
+    console.log('Max reconnection attempts reached')
+    websocketStatus.value = 'failed'
+    alert('No se pudo conectar al chat. Por favor, recarga la página.')
+  })
+
   websocketService.on('message', handleWebSocketMessage)
 }
 
 const handleWebSocketMessage = (data) => {
   console.log('WebSocket message received:', data)
 
-
-  if (data.type === 'new_message' && data.data.group_id === selectedGroup.value?.id) {
-    groupMessages.value.push({
-      id: Date.now(),
-      message: data.data.message,
-      user_id: data.data.user_id,
-      created_at: new Date().toISOString()
+  // Manejar el nuevo formato de datos que viene como array
+  if (Array.isArray(data)) {
+    // Si es un array, procesar cada elemento
+    data.forEach(item => {
+      handleWebSocketMessageItem(item)
     })
-    scrollGroupToBottom()
-  } else if (data.type === 'user_typing') {
+  } else {
+    // Si es un objeto individual
+    handleWebSocketMessageItem(data)
+  }
+}
+
+const handleWebSocketMessageItem = (item) => {
+  console.log('📨 Processing WebSocket message item:', item)
+
+  // Verificar si es un mensaje de conexión de usuario
+  if (item.group_id && item.user_id && typeof item.status === 'boolean') {
+    // Es un mensaje de estado de conexión de usuario
+    console.log('👤 User connection status update:', item)
+    
+    // Actualizar el contador de miembros en línea
+    if (item.status) {
+      // Usuario conectado
+      if (!groupMembers.value.find(member => member.user_id === item.user_id)) {
+        // Agregar usuario a la lista si no existe
+        groupMembers.value.push({
+          user_id: item.user_id,
+          name: `Usuario ${item.user_id.slice(0, 8)}`,
+          avatar: '👤',
+          color: 'bg-gray-500'
+        })
+      }
+    } else {
+      // Usuario desconectado - limpiar sus mensajes recientes
+      clearUserRecentMessages(item.user_id)
+    }
+    
+    // Recalcular miembros en línea
+    updateOnlineMembersCount()
+    return
+  }
+
+  // Manejar mensajes de chat (formato anterior)
+  if (item.type === 'new_message' && item.data && item.data.group_id === selectedGroup.value?.group_id) {
+    console.log('💬 Received new message from WebSocket:', item.data)
+    
+    const receivedMessage = {
+      id: Date.now(),
+      message: item.data.message,
+      user_id: item.data.user_id,
+      created_at: new Date().toISOString()
+    }
+    
+    console.log('📝 Attempting to add received message:', receivedMessage)
+    
+    // Usar la función segura para evitar duplicados
+    const added = addMessageSafely(receivedMessage)
+    console.log('✅ Received message added:', added)
+  } else if (item.type === 'user_typing') {
     // Handle typing indicator
-    isGroupTyping.value = true
+    typingUsers.value.add(item.user_id)
     setTimeout(() => {
-      isGroupTyping.value = false
+      typingUsers.value.delete(item.user_id)
     }, 3000)
-  } else if (data.type === 'user_stop_typing') {
-    isGroupTyping.value = false
+  } else if (item.type === 'user_stop_typing') {
+    typingUsers.value.delete(item.user_id)
+  }
+}
+
+const updateOnlineMembersCount = () => {
+  // Contar miembros que están en línea (status: true)
+  // Por ahora usamos el total de miembros como aproximación
+  onlineMembers.value = groupMembers.value.length
+}
+
+// Función para agregar mensaje de forma segura (sin duplicados)
+const addMessageSafely = (message) => {
+  const timestamp = new Date(message.created_at).getTime()
+  const normalizedMessage = message.message.trim().toLowerCase()
+  
+  console.log('addMessageSafely called with:', {
+    message: message.message,
+    userId: message.user_id,
+    timestamp: timestamp,
+    normalizedMessage: normalizedMessage,
+    recentMessagesSize: recentMessages.value.size
+  })
+  
+  // Crear una clave que incluya el usuario para evitar bloquear mensajes de diferentes usuarios
+  const simpleKey = `${message.user_id}-${normalizedMessage}`
+  
+  console.log('🔑 Generated key:', simpleKey)
+  console.log('📋 Current recent messages:', Array.from(recentMessages.value))
+  
+  // Verificar si el MISMO usuario ya envió el MISMO mensaje en los últimos 10 segundos
+  if (recentMessages.value.has(simpleKey)) {
+    console.log('❌ Duplicate message from same user detected, skipping:', message)
+    console.log('🔍 This prevents the same user from sending the same message twice quickly')
+    return false
+  }
+  
+  console.log('✅ Adding new message:', message)
+  
+  // Agregar a mensajes recientes
+  recentMessages.value.add(simpleKey)
+  
+  // Limpiar después del tiempo de ventana
+  setTimeout(() => {
+    recentMessages.value.delete(simpleKey)
+    console.log('⏰ Removed key from recent messages:', simpleKey)
+  }, MESSAGE_DEDUP_WINDOW)
+  
+  // Agregar a la lista de mensajes
+  groupMessages.value.push(message)
+  scrollGroupToBottom()
+  return true
+}
+
+const getWebSocketStatusClass = () => {
+  switch (websocketStatus.value) {
+    case 'connected':
+      return 'text-green-400'
+    case 'connecting':
+      return 'text-yellow-400'
+    case 'error':
+    case 'failed':
+      return 'text-red-400'
+    default:
+      return 'text-gray-400'
+  }
+}
+
+const getWebSocketStatusText = () => {
+  switch (websocketStatus.value) {
+    case 'connected':
+      return '🟢 Conectado'
+    case 'connecting':
+      return '🟡 Conectando...'
+    case 'error':
+      return '🔴 Error de conexión'
+    case 'failed':
+      return '🔴 Conexión fallida'
+    default:
+      return '⚪ Desconectado'
   }
 }
 
 const handleGroupTyping = () => {
-  if (websocketStatus.value === 'connected') {
+  // Solo enviar typing indicator si el WebSocket está conectado y hay texto en el input
+  if (websocketStatus.value === 'connected' && groupMessage.value.trim()) {
     websocketService.sendTyping(currentUser.value.id)
   }
 }
@@ -582,7 +777,7 @@ const handleGroupTyping = () => {
         
         const messageData = {
           user_id: currentUser.value.id,
-          group_id: selectedGroup.value.id,
+          group_id: selectedGroup.value.group_id,
           message: userMessage
         }
 
@@ -621,12 +816,67 @@ const handleGroupTyping = () => {
     }
 
     const sendGroupMessage = async () => {
-      if (!groupMessage.value.trim() || isGroupTyping.value || !currentUser.value || !selectedGroup.value || websocketStatus.value !== 'connected') return
+      if (!groupMessage.value.trim() || !currentUser.value || !selectedGroup.value) return
+      
       const userMessage = groupMessage.value
       groupMessage.value = ''
 
-      // Send via WebSocket for real-time
-      websocketService.sendMessage(currentUser.value.id, userMessage)
+      console.log('🚀 Sending group message:', userMessage)
+      console.log('📊 Current recent messages:', Array.from(recentMessages.value))
+
+      // Agregar mensaje localmente inmediatamente para mejor UX
+      const localMessage = {
+        id: Date.now(),
+        message: userMessage,
+        user_id: currentUser.value.id,
+        created_at: new Date().toISOString()
+      }
+      
+      // Usar la función segura para evitar duplicados
+      const added = addMessageSafely(localMessage)
+      console.log('📝 Local message added:', added)
+
+      // Intentar enviar via WebSocket primero
+      if (websocketStatus.value === 'connected') {
+        try {
+          websocketService.sendMessage(currentUser.value.id, userMessage)
+          console.log('📡 Message sent via WebSocket')
+          
+          // Enviar stop typing después de enviar el mensaje
+          websocketService.sendStopTyping(currentUser.value.id)
+        } catch (error) {
+          console.error('❌ WebSocket send failed, trying REST API:', error)
+          // Fallback a API REST
+          await sendMessageViaAPI(userMessage)
+        }
+      } else {
+        // WebSocket no está conectado, usar API REST
+        console.log('🌐 WebSocket not connected, using REST API')
+        await sendMessageViaAPI(userMessage)
+      }
+    }
+
+    const sendMessageViaAPI = async (message) => {
+      try {
+        const messageData = {
+          user_id: currentUser.value.id,
+          group_id: selectedGroup.value.group_id,
+          message: message
+        }
+        
+        const response = await chatService.sendGroupMessage(messageData)
+        console.log('Message sent via REST API:', response)
+        
+        // Enviar stop typing después de enviar el mensaje por API
+        if (websocketStatus.value === 'connected') {
+          websocketService.sendStopTyping(currentUser.value.id)
+        }
+      } catch (error) {
+        console.error('Error sending message via REST API:', error)
+        // No removemos el mensaje local ya que addMessageSafely ya lo manejó
+        // Solo mostramos el error al usuario
+        alert('Error al enviar mensaje. Por favor, intenta de nuevo.')
+      }
     }
 
     const sendQuickMessage = (text) => {
@@ -658,7 +908,7 @@ const handleGroupTyping = () => {
     }
 
     const generateGroupSuggestion = async () => {
-      isGroupTyping.value = true
+      typingUsers.value.add(currentUser.value.id) // Add current user to typing set
       await new Promise(resolve => setTimeout(resolve, 1500))
       
       const suggestions = [
@@ -676,7 +926,7 @@ const handleGroupTyping = () => {
         created_at: new Date().toISOString()
       })
       scrollGroupToBottom()
-      isGroupTyping.value = false
+      typingUsers.value.delete(currentUser.value.id) // Remove current user from typing set
     }
 
 // Enhanced watchers for messages and scroll
@@ -698,8 +948,8 @@ watch(isAiTyping, (isTyping) => {
   }
 })
 
-watch(isGroupTyping, (isTyping) => {
-  if (isTyping) {
+watch(typingUsers, (users) => {
+  if (users.size > 0) {
     scrollGroupToBottom()
   }
 })
