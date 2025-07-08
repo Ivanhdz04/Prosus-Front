@@ -7,7 +7,7 @@
           <router-link to="/" class="flex items-center space-x-3">
             <div class="text-2xl">✈️</div>
             <div>
-              <h1 class="text-xl font-bold text-white">Travel ProSus</h1>
+              <h1 class="text-xl font-bold text-white">Travel Buddies</h1>
               <p class="text-gray-400 text-xs">AI-Powered Group Travel</p>
             </div>
           </router-link>

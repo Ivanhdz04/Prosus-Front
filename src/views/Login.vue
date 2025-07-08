@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="text-center">
         <h2 class="text-4xl font-bold text-white mb-2">Welcome Back</h2>
-        <p class="text-gray-300">Sign in to your Travel ProSus account</p>
+        <p class="text-gray-300">Sign in to your Travel Buddies account</p>
       </div>
 
       <!-- Login Form -->

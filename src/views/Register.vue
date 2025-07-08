@@ -3,7 +3,7 @@
     <div class="max-w-md w-full space-y-8">
       <!-- Header -->
       <div class="text-center">
-        <h2 class="text-4xl font-bold text-white mb-2">Join Travel ProSus</h2>
+        <h2 class="text-4xl font-bold text-white mb-2">Join Travel Buddies</h2>
         <p class="text-gray-300">Create your account and start planning amazing trips</p>
       </div>
 

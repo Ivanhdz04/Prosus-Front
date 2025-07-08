@@ -186,7 +186,7 @@
         <div class="flex items-center justify-center gap-3 mb-6">
           <div class="text-2xl">🚀</div>
           <span class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Travel ProSus
+            Travel Buddies
           </span>
         </div>
         <p class="text-gray-400 mb-6">

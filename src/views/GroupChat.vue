@@ -6,7 +6,7 @@
         <div class="flex items-center gap-4">
           <router-link to="/" class="text-2xl">🏠</router-link>
           <div>
-            <h1 class="text-xl font-bold text-white">Travel ProSus - Group Planning</h1>
+            <h1 class="text-xl font-bold text-white">Travel Buddies - Group Planning</h1>
             <p class="text-gray-400 text-sm">AI Assistant + Group Collaboration</p>
           </div>
         </div>
