@@ -31,6 +31,77 @@
       </div>
     </div>
 
+    <!-- Create Group Modal -->
+    <div v-if="showCreateGroupModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+        <h2 class="text-xl font-bold text-white mb-4">Crear Nuevo Grupo</h2>
+        
+        <form @submit.prevent="createGroup" class="space-y-4">
+          <div>
+            <label for="groupName" class="block text-sm font-medium text-gray-300 mb-2">
+              Nombre del Grupo
+            </label>
+            <input
+              id="groupName"
+              v-model="newGroupName"
+              type="text"
+              required
+              placeholder="Ingresa el nombre del grupo"
+              class="input-field w-full"
+              :disabled="isCreatingGroup"
+            />
+          </div>
+          
+          <div>
+            <label for="groupMembers" class="block text-sm font-medium text-gray-300 mb-2">
+              Seleccionar Miembros
+            </label>
+            <select
+              id="groupMembers"
+              v-model="selectedUsers"
+              multiple
+              class="input-field w-full h-32"
+              :disabled="isCreatingGroup"
+            >
+              <option 
+                v-for="user in allUsers" 
+                :key="user.id" 
+                :value="user.id"
+                class="py-2 px-3"
+              >
+                {{ user.name || user.email }}
+              </option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">
+              Mantén presionado Ctrl (Cmd en Mac) para seleccionar múltiples usuarios
+            </p>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button 
+              type="button" 
+              @click="closeCreateGroupModal" 
+              class="btn-secondary flex-1"
+              :disabled="isCreatingGroup"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              class="btn-primary flex-1"
+              :disabled="!newGroupName.trim() || selectedUsers.length === 0 || isCreatingGroup"
+            >
+              <span v-if="isCreatingGroup" class="flex items-center gap-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Creando...
+              </span>
+              <span v-else>Crear Grupo</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Loading State -->
     <div v-if="isLoading" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
       <div class="text-center">
@@ -291,6 +362,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { chatService } from '@/services/chatService'
 import { groupService } from '@/services/groupService'
+import { userService } from '../services/userService'
 import websocketService from '@/services/websocketService'
 
 // Router
@@ -311,6 +383,13 @@ const showGroupSelection = ref(false)
 const availableGroups = ref([])
 const selectedGroup = ref(null)
 const websocketStatus = ref('disconnected')
+
+// Modal de creación de grupo
+const showCreateGroupModal = ref(false)
+const newGroupName = ref('')
+const selectedUsers = ref([])
+const allUsers = ref([])
+const isCreatingGroup = ref(false)
 
 // Current user and group data
 const currentUser = computed(() => authStore.currentUser)
@@ -447,13 +526,15 @@ const loadUserGroups = async () => {
       // No groups available, redirect to create group or home
       router.push('/')
       return
-    } else if (groups.length === 1) {
-      // Only one group, auto-select it
-      selectGroup(groups[0])
-    } else {
+    }else {
       // Multiple groups, show selection
       showGroupSelection.value = true
     }
+    // else if (groups.length === 1) {
+    //   // Only one group, auto-select it
+    //   selectGroup(groups[0])
+    // } 
+   
   } catch (error) {
     console.error('Error loading user groups:', error)
     availableGroups.value = [
@@ -476,9 +557,80 @@ const selectGroup = async (group) => {
   await initializeChat()
 }
 
-const createNewGroup = () => {
-  // Redirect to group creation page or show modal
-  router.push('/travel-planner')
+const createNewGroup = async () => {
+  try {
+    // Cargar lista de usuarios disponibles
+    const users = await userService.getUsers()
+    console.log("users", users);
+    allUsers.value = users.filter(user => user.id !== currentUser.value?.id) // Excluir al usuario actual
+    
+    // Agregar el usuario actual a la selección por defecto
+    if (currentUser.value) {
+      selectedUsers.value = [currentUser.value.id]
+    }
+    
+    showCreateGroupModal.value = true
+  } catch (error) {
+    console.error('Error loading users:', error)
+    alert('Error al cargar la lista de usuarios. Por favor, intenta de nuevo.')
+  }
+}
+
+const closeCreateGroupModal = () => {
+  showCreateGroupModal.value = false
+  newGroupName.value = ''
+  selectedUsers.value = []
+}
+
+const createGroup = async () => {
+  if (!newGroupName.value.trim() || selectedUsers.value.length === 0) return
+  
+  try {
+    isCreatingGroup.value = true
+    
+    // Crear el grupo
+    const groupData = {
+      name: newGroupName.value.trim(),
+      host_id: currentUser.value?.id
+    }
+    
+    const newGroup = await groupService.createGroup(groupData)
+    console.log('Grupo creado:', newGroup)
+    
+    // Agregar miembros al grupo
+    for (const userId of selectedUsers.value) {
+      try {
+        const memberData = {
+          group_id: newGroup.id,
+          user_id: userId,
+        }
+        await groupService.addGroupMember(memberData)
+        console.log(`Miembro ${userId} agregado al grupo`)
+      } catch (error) {
+        console.error(`Error agregando miembro ${userId}:`, error)
+      }
+    }
+    
+    // Cerrar modal y recargar grupos
+    closeCreateGroupModal()
+    
+    // Recargar la lista de grupos disponibles
+    await loadUserGroups()
+    
+    // Seleccionar automáticamente el nuevo grupo
+    if (availableGroups.value.length > 0) {
+      const createdGroup = availableGroups.value.find(g => g.id === newGroup.id || g.group_id === newGroup.id)
+      if (createdGroup) {
+        await selectGroup(createdGroup)
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error creating group:', error)
+    alert('Error al crear el grupo. Por favor, intenta de nuevo.')
+  } finally {
+    isCreatingGroup.value = false
+  }
 }
 
 const goBack = () => {
@@ -1163,7 +1315,33 @@ onUnmounted(() => {
   .chat-panel {
     width: 100% !important;
   }
-  
+}
 
+/* Estilos para el select múltiple */
+select[multiple] {
+  background-image: none;
+}
+
+select[multiple] option {
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+  background: rgba(31, 41, 55, 0.8);
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+select[multiple] option:hover {
+  background: rgba(59, 130, 246, 0.3);
+}
+
+select[multiple] option:checked {
+  background: rgba(59, 130, 246, 0.6);
+  color: white;
+}
+
+select[multiple] option:focus {
+  background: rgba(59, 130, 246, 0.4);
 }
 </style>

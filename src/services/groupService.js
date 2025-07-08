@@ -21,7 +21,7 @@ export const groupService = {
 
   // Create group
   async createGroup(groupData) {
-    const response = await api.post('/groups/', groupData)
+    const response = await api.post('/groups/groups/', groupData)
     return response.data
   },
 
@@ -60,7 +60,7 @@ export const groupService = {
   },
 
   async addGroupMember(memberData) {
-    const response = await api.post('/groups/group-members/', memberData)
+    const response = await api.post('/group-members/', memberData)
     return response.data
   },
 
