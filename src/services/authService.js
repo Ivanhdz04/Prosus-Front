@@ -36,7 +36,7 @@ export const authService = {
 
   // Get current user
   async getCurrentUser() {
-    const response = await api.get('/auth/me')
+    const response = await api.get('/me')
     const user = response.data.user
     localStorage.setItem('user', JSON.stringify(user))
     return user
@@ -60,7 +60,7 @@ export const authService = {
       throw new Error('No refresh token available')
     }
     
-    const response = await api.post('/auth/refresh', {
+    const response = await api.post('/refresh', {
       refresh_token: refreshToken
     })
     
