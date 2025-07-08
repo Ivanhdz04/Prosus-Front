@@ -82,6 +82,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Preferences Form Modal -->
+    <PreferencesForm
+      v-if="showPreferencesForm"
+      :user-id="authStore.user?.id"
+      :user-name="authStore.user?.name"
+      @saved="handlePreferencesSaved"
+    />
   </div>
 </template>
 
@@ -89,6 +97,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import PreferencesForm from '@/components/PreferencesForm.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -102,14 +111,23 @@ const form = reactive({
 // Computed properties
 const loading = computed(() => authStore.loading)
 const error = computed(() => authStore.error)
+const showPreferencesForm = computed(() => authStore.showPreferencesForm)
 
 // Methods
 const handleLogin = async () => {
   const result = await authStore.login(form.email, form.password)
   
   if (result.success) {
-    // Redirect to home page
-    router.push('/')
+    // If user has preferences, redirect to home
+    // If not, the preferences form will be shown automatically
+    if (authStore.hasPreferences) {
+      router.push('/')
+    }
   }
+}
+
+const handlePreferencesSaved = () => {
+  authStore.hidePreferencesForm()
+  router.push('/')
 }
 </script> 
