@@ -129,6 +129,14 @@
         </div>
       </form>
     </div>
+
+    <!-- Preferences Form Modal -->
+    <PreferencesForm
+      v-if="showPreferencesForm"
+      :user-id="registeredUser?.id"
+      :user-name="registeredUser?.name"
+      @saved="handlePreferencesSaved"
+    />
   </div>
 </template>
 
@@ -136,6 +144,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import PreferencesForm from '@/components/PreferencesForm.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -151,6 +160,8 @@ const form = reactive({
 
 // Local state
 const success = ref('')
+const registeredUser = ref(null)
+const showPreferencesForm = ref(false)
 
 // Computed properties
 const loading = computed(() => authStore.loading)
@@ -175,7 +186,10 @@ const handleRegister = async () => {
   const result = await authStore.register(userData)
   
   if (result.success) {
-    success.value = 'Account created successfully! You can now sign in.'
+    success.value = 'Account created successfully! Please set up your travel preferences.'
+    registeredUser.value = result.user
+    showPreferencesForm.value = true
+    
     // Clear form
     Object.assign(form, {
       name: '',
@@ -184,11 +198,16 @@ const handleRegister = async () => {
       confirmPassword: '',
       avatar_url: ''
     })
-    
-    // Redirect to login after 2 seconds
-    setTimeout(() => {
-      router.push('/login')
-    }, 2000)
   }
+}
+
+const handlePreferencesSaved = () => {
+  showPreferencesForm.value = false
+  success.value = 'Account created and preferences saved! Redirecting to login...'
+  
+  // Redirect to login after 2 seconds
+  setTimeout(() => {
+    router.push('/login')
+  }, 2000)
 }
 </script> 
