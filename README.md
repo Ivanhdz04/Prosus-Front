@@ -1,4 +1,4 @@
-# 🚀 Travel ProSus - AI-Powered Group Travel Planning Platform
+# 🚀 Travel Buddies - AI-Powered Group Travel Planning Platform
 
 A modern, full-stack web application for collaborative group travel planning with AI assistance. Built with Vue.js 3, featuring real-time chat, intelligent recommendations, and comprehensive booking management.
 
@@ -234,7 +234,7 @@ npm run preview
 ```bash
 VITE_API_BASE_URL=https://your-api-domain.com
 VITE_WS_BASE_URL=wss://your-api-domain.com
-VITE_APP_NAME=Travel ProSus
+VITE_APP_NAME=Travel Buddies
 VITE_APP_VERSION=1.0.0
 ```
 
@@ -257,10 +257,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - OpenAI for AI integration capabilities
 - The open-source community for inspiration
 
-## 📞 Support
-
-For support, email support@travelprosus.com or create an issue in this repository.
-
 ---
 
-**Travel ProSus** - Making group travel planning effortless with AI assistance 🚀✈️ 
+**Travel Buddies** - Making group travel planning effortless with AI assistance 🚀✈️ 
