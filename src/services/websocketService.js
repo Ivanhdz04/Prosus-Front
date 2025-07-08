@@ -24,9 +24,14 @@ class WebSocketService {
 
     this.isConnecting = true
     this.currentGroupId = groupId
-    const wsUrl = `${import.meta.env.VITE_WS_BASE_URL}/ws/chat/${groupId}`
+    
+    // Construir URL del WebSocket con manejo de barras
+    const baseUrl = import.meta.env.VITE_WS_BASE_URL || 'wss://hstp4bpv-8000.usw3.devtunnels.ms'
+    const wsUrl = `${baseUrl.replace(/\/$/, '')}/ws/chat/${groupId}`
     
     console.log('Attempting to connect to WebSocket:', wsUrl)
+    console.log('Group ID:', groupId)
+    console.log('Base WS URL:', baseUrl)
     
     try {
       this.ws = new WebSocket(wsUrl)
@@ -62,7 +67,12 @@ class WebSocketService {
       }
 
       this.ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason)
+        console.log('WebSocket disconnected:', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          groupId: this.currentGroupId
+        })
         this.isConnecting = false
         clearTimeout(this.connectionTimeout)
         this.stopHeartbeat()
@@ -70,6 +80,7 @@ class WebSocketService {
         
         // Attempt to reconnect if not a normal closure and we haven't exceeded max attempts
         if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
+          console.log(`Attempting reconnection ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts}`)
           this.reconnect(groupId)
         } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
           console.log('Max reconnection attempts reached')
@@ -78,7 +89,12 @@ class WebSocketService {
       }
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error)
+        console.error('WebSocket error:', {
+          error,
+          readyState: this.ws?.readyState,
+          url: wsUrl,
+          groupId: this.currentGroupId
+        })
         this.isConnecting = false
         clearTimeout(this.connectionTimeout)
         this.emit('error', error)

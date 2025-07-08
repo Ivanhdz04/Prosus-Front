@@ -203,11 +203,11 @@ const handleRegister = async () => {
 
 const handlePreferencesSaved = () => {
   showPreferencesForm.value = false
-  success.value = 'Account created and preferences saved! Redirecting to login...'
+  success.value = 'Account created and preferences saved! Redirecting to home...'
   
-  // Redirect to login after 2 seconds
+  // Redirect to home after 2 seconds
   setTimeout(() => {
-    router.push('/login')
+    router.push('/')
   }, 2000)
 }
 </script> 

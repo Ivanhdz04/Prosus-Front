@@ -4,14 +4,14 @@ export const authService = {
   // Login user
   async login(email, password) {
     const response = await api.post('/auth/login', { email, password })
-    const { user, session } = response.data
+    const loginData = response.data
     
-    // Store tokens and user data
-    localStorage.setItem('access_token', session.access_token)
-    localStorage.setItem('refresh_token', session.refresh_token)
-    localStorage.setItem('user', JSON.stringify(user))
+    // Store tokens and user data from the new backend structure
+    localStorage.setItem('access_token', loginData.session.access_token)
+    localStorage.setItem('refresh_token', loginData.session.refresh_token)
+    localStorage.setItem('user', JSON.stringify(loginData.local_user))
     
-    return { user, session }
+    return loginData
   },
 
   // Register user
@@ -49,8 +49,18 @@ export const authService = {
 
   // Get stored user data
   getStoredUser() {
-    const user = localStorage.getItem('user')
-    return user ? JSON.parse(user) : null
+    try {
+      const userString = localStorage.getItem('user')
+      if (!userString || userString === 'undefined' || userString === 'null') {
+        return null
+      }
+      return JSON.parse(userString)
+    } catch (error) {
+      console.error('Error parsing stored user:', error)
+      // Clear corrupted data
+      localStorage.removeItem('user')
+      return null
+    }
   },
 
   // Refresh token

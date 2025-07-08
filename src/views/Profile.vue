@@ -71,27 +71,27 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div class="card text-center">
             <div class="text-3xl mb-2">✈️</div>
-            <div class="text-2xl font-bold text-blue-400">{{ stats.trips || 0 }}</div>
+            <div class="text-2xl font-bold text-blue-400">{{ mockStats.trips }}</div>
             <div class="text-gray-400 text-sm">Trips</div>
           </div>
           <div class="card text-center">
             <div class="text-3xl mb-2">🌍</div>
-            <div class="text-2xl font-bold text-green-400">{{ stats.countries || 0 }}</div>
+            <div class="text-2xl font-bold text-green-400">{{ mockStats.countries }}</div>
             <div class="text-gray-400 text-sm">Countries</div>
           </div>
           <div class="card text-center">
             <div class="text-3xl mb-2">🏨</div>
-            <div class="text-2xl font-bold text-purple-400">{{ stats.nights || 0 }}</div>
+            <div class="text-2xl font-bold text-purple-400">{{ mockStats.nights }}</div>
             <div class="text-gray-400 text-sm">Nights</div>
           </div>
           <div class="card text-center">
             <div class="text-3xl mb-2">💰</div>
-            <div class="text-2xl font-bold text-yellow-400">€{{ stats.spent || 0 }}</div>
+            <div class="text-2xl font-bold text-yellow-400">€{{ mockStats.spent }}</div>
             <div class="text-gray-400 text-sm">Spent</div>
           </div>
         </div>
 
-        <!-- Preferences Grid -->
+        <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Travel Preferences -->
           <div class="card">
@@ -100,10 +100,26 @@
               Travel Preferences
             </h3>
             <div v-if="preferences.length > 0" class="space-y-4">
-              <div v-for="pref in preferences" :key="pref.name" class="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                <span class="text-gray-300">{{ pref.name }}</span>
-                <span class="text-blue-400">{{ pref.value || 'Not set' }}</span>
+              <div v-for="pref in preferences" :key="`${pref.type}-${pref.name}`" class="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                <div class="flex items-center gap-3">
+                  <span class="text-2xl">
+                    {{ pref.type === 'Destinos' || pref.type === 'DESTINATION' ? '🏖️' : 
+                       pref.type === 'Actividades' || pref.type === 'ACTIVITIES' ? '🎯' : 
+                       pref.type === 'Precios' || pref.type === 'PRICE' ? '💰' : 
+                       pref.type === 'Alojamientos' || pref.type === 'ACCOMMODATION' ? '🏨' : 
+                       pref.type === 'Transportes' || pref.type === 'TRASNPORT' || pref.type === 'TRANSPORT' ? '🚗' : 
+                       pref.type === 'Motivaciones' || pref.type === 'MOTIVATION' ? '❤️' : '⭐' }}
+                  </span>
+                  <div>
+                    <span class="text-gray-300 font-medium">{{ pref.name }}</span>
+                    <div class="text-xs text-gray-500">{{ pref.type.toLowerCase() }}</div>
+                  </div>
+                </div>
+                <span class="text-blue-400 text-sm">{{ pref.value || pref.name }}</span>
               </div>
+              <button @click="showEditPreferencesModal = true" class="w-full btn-secondary text-sm mt-4">
+                ✏️ Edit Preferences
+              </button>
             </div>
             <div v-else class="text-center py-8">
               <div class="text-gray-500 text-4xl mb-2">🎯</div>
@@ -112,52 +128,25 @@
             </div>
           </div>
 
-          <!-- Recent Trips -->
+          <!-- Groups -->
           <div class="card">
             <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
-              <span>📅</span>
-              Recent Trips
+              <span>�</span>
+              My Groups
             </h3>
-            <div v-if="recentTrips.length > 0" class="space-y-3">
-              <div v-for="trip in recentTrips" :key="trip.id" class="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg">
-                <div class="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-                  🌍
+            <div v-if="userGroups.length > 0" class="space-y-3">
+              <div v-for="group in userGroups" :key="group.id" class="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg">
+                <div class="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
+                  👥
                 </div>
                 <div class="flex-1">
-                  <h4 class="font-medium text-white">{{ trip.destination }}</h4>
-                  <p class="text-gray-400 text-sm">
-                    {{ formatDate(trip.start_date) }} • {{ calculateDays(trip.start_date, trip.end_date) }} days
-                  </p>
-                </div>
-                <div class="text-right">
-                  <div class="text-green-400 font-semibold">{{ trip.status ? 'Active' : 'Completed' }}</div>
-                  <div class="text-gray-400 text-sm">{{ formatDate(trip.created_at) }}</div>
+                  <h4 class="font-medium text-white">{{ group.group_name || group.name }}</h4>
                 </div>
               </div>
             </div>
             <div v-else class="text-center py-8">
-              <div class="text-gray-500 text-4xl mb-2">✈️</div>
-              <p class="text-gray-400">No trips yet</p>
-              <router-link to="/group-chat" class="btn-primary mt-2">Start Planning</router-link>
-            </div>
-          </div>
-
-          <!-- AI Insights -->
-          <div class="card">
-            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
-              <span>🤖</span>
-              AI Insights
-            </h3>
-            <div v-if="aiInsights.length > 0" class="space-y-4">
-              <div v-for="insight in aiInsights" :key="insight.id" class="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4">
-                <h4 class="font-medium text-blue-400 mb-2">{{ insight.title }}</h4>
-                <p class="text-gray-300 text-sm">{{ insight.message }}</p>
-              </div>
-            </div>
-            <div v-else class="text-center py-8">
-              <div class="text-gray-500 text-4xl mb-2">🤖</div>
-              <p class="text-gray-400">No AI insights yet</p>
-              <p class="text-gray-500 text-sm">Start chatting to get personalized recommendations</p>
+              <div class="text-gray-500 text-4xl mb-2">👥</div>
+              <p class="text-gray-400">No groups found</p>
             </div>
           </div>
 
@@ -169,23 +158,68 @@
             </h3>
             <div class="space-y-4">
               <div class="flex items-center justify-between">
-                <span class="text-gray-300">Profile visibility</span>
-                <div class="w-12 h-6 bg-blue-600 rounded-full relative">
-                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+                <div>
+                  <span class="text-gray-300">Profile visibility</span>
+                  <p class="text-gray-500 text-xs">Control who can see your profile</p>
+                </div>
+                <div class="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer">
+                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 transition-transform"></div>
                 </div>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-gray-300">Email notifications</span>
-                <div class="w-12 h-6 bg-blue-600 rounded-full relative">
-                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+                <div>
+                  <span class="text-gray-300">Email notifications</span>
+                  <p class="text-gray-500 text-xs">Receive updates about your trips</p>
+                </div>
+                <div class="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer">
+                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 transition-transform"></div>
                 </div>
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-gray-300">AI recommendations</span>
-                <div class="w-12 h-6 bg-blue-600 rounded-full relative">
-                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+                <div>
+                  <span class="text-gray-300">AI recommendations</span>
+                  <p class="text-gray-500 text-xs">Get personalized travel suggestions</p>
+                </div>
+                <div class="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer">
+                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 transition-transform"></div>
                 </div>
               </div>
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="text-gray-300">Dark mode</span>
+                  <p class="text-gray-500 text-xs">Toggle dark/light theme</p>
+                </div>
+                <div class="w-12 h-6 bg-blue-600 rounded-full relative cursor-pointer">
+                  <div class="w-5 h-5 bg-white rounded-full absolute top-0.5 right-0.5 transition-transform"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Insights -->
+          <div class="card">
+            <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+              <span>🤖</span>
+              AI Insights
+            </h3>
+            <div class="space-y-4">
+              <div v-for="insight in mockAiInsights" :key="insight.id" class="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                  <span class="text-2xl">{{ insight.icon }}</span>
+                  <div class="flex-1">
+                    <h4 class="font-medium text-blue-400 mb-2">{{ insight.title }}</h4>
+                    <p class="text-gray-300 text-sm">{{ insight.message }}</p>
+                    <div class="flex items-center gap-2 mt-2">
+                      <span class="text-xs text-gray-500">{{ insight.confidence }}% confidence</span>
+                      <span class="text-xs text-gray-500">•</span>
+                      <span class="text-xs text-gray-500">{{ insight.date }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button class="w-full btn-secondary text-sm mt-4">
+                🔄 Generate New Insights
+              </button>
             </div>
           </div>
         </div>
@@ -219,7 +253,19 @@
       </div>
     </div>
 
-    <!-- Add Preferences Modal -->
+    <!-- Edit Preferences Modal -->
+    <div v-if="showEditPreferencesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
+        <h3 class="text-xl font-bold text-white mb-4">Edit Preferences</h3>
+        <div class="text-gray-400 text-sm mb-4">
+          Your preferences have been loaded. To make changes, please use the main preferences form.
+        </div>
+        <div class="flex gap-3">
+          <button @click="showEditPreferencesModal = false" class="btn-secondary flex-1">Close</button>
+          <router-link to="/profile" class="btn-primary flex-1 text-center">Update Preferences</router-link>
+        </div>
+      </div>
+    </div>
     <div v-if="showPreferencesModal" class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-md">
         <h3 class="text-xl font-bold text-white mb-4">Add Travel Preferences</h3>
@@ -254,8 +300,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { userService } from '@/services/userService'
-import { tripService } from '@/services/tripService'
 import { preferencesService } from '@/services/preferencesService'
+import { groupService } from '@/services/groupService'
 
 // Store
 const authStore = useAuthStore()
@@ -264,19 +310,48 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const error = ref(null)
 const userProfile = ref(null)
-const recentTrips = ref([])
 const preferences = ref([])
-const aiInsights = ref([])
-const stats = ref({
-  trips: 0,
-  countries: 0,
-  nights: 0,
-  spent: 0
+const userGroups = ref([])
+
+// Mock data for display purposes
+const mockStats = ref({
+  trips: 12,
+  countries: 8,
+  nights: 45,
+  spent: 3450
 })
+
+const mockAiInsights = ref([
+  {
+    id: 1,
+    icon: "🎯",
+    title: "Travel Style Match",
+    message: "Based on your preferences, you love cultural experiences and city exploration. Consider visiting Vienna or Prague for your next adventure!",
+    confidence: 92,
+    date: "2 days ago"
+  },
+  {
+    id: 2,
+    icon: "💰",
+    title: "Budget Optimization",
+    message: "You could save 15% on accommodations by booking 3 weeks in advance instead of 1 week. Your spending pattern shows you prefer mid-range hotels.",
+    confidence: 87,
+    date: "1 week ago"
+  },
+  {
+    id: 3,
+    icon: "🗓️",
+    title: "Best Travel Time",
+    message: "Your travel history suggests you prefer shoulder seasons. April-May and September-October would be perfect for your next European trip.",
+    confidence: 94,
+    date: "3 days ago"
+  }
+])
 
 // Modals
 const showEditModal = ref(false)
 const showPreferencesModal = ref(false)
+const showEditPreferencesModal = ref(false)
 
 // Forms
 const editForm = ref({
@@ -303,61 +378,129 @@ const formatDate = (dateString) => {
   })
 }
 
-const calculateDays = (startDate, endDate) => {
-  if (!startDate || !endDate) return 0
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  const diffTime = Math.abs(end - start)
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-}
-
 const loadProfile = async () => {
   loading.value = true
   error.value = null
   
   try {
-    // Load user profile
-    if (currentUser.value?.id) {
-      const profile = await userService.getUserById(currentUser.value.id)
-      userProfile.value = profile
+    // Load user profile - use the current user from auth store first
+    if (currentUser.value) {
+      userProfile.value = currentUser.value
       
-      // Set edit form
+      // Set edit form with current user data
       editForm.value = {
-        name: profile.name || '',
-        email: profile.email || '',
-        avatar_url: profile.avatar_url || ''
+        name: currentUser.value.name || '',
+        email: currentUser.value.email || '',
+        avatar_url: currentUser.value.avatar_url || ''
       }
+      
+      console.log('Current user profile loaded:', userProfile.value)
     }
 
-    // Load user trips
-    if (currentUser.value?.id) {
-      const trips = await tripService.getTrips()
-      recentTrips.value = trips.slice(0, 3) // Get last 3 trips
-      stats.value.trips = trips.length
-    }
-
-    // Load user preferences (we'll get them from the user's groups)
+    // Try to get additional user details from API if needed
     if (currentUser.value?.id) {
       try {
-        // For now, we'll show empty preferences since we need a group_id
-        // In a real app, you might want to get preferences from the user's active group
-        preferences.value = []
-      } catch (err) {
-        console.log('No preferences found')
+        const detailedProfile = await userService.getUserById(currentUser.value.id)
+        console.log('Detailed profile from API:', detailedProfile)
+        
+        // Merge API data with current user data
+        userProfile.value = {
+          ...userProfile.value,
+          ...detailedProfile
+        }
+        
+        // Update edit form with API data
+        editForm.value = {
+          name: detailedProfile.name || userProfile.value.name || '',
+          email: detailedProfile.email || userProfile.value.email || '',
+          avatar_url: detailedProfile.avatar_url || userProfile.value.avatar_url || ''
+        }
+      } catch (apiError) {
+        console.log('Could not fetch detailed profile from API, using auth store data:', apiError.message)
+      }
+    }
+
+    // Load user preferences
+    if (currentUser.value?.id) {
+      try {
+        const userPreferences = await preferencesService.getUserPreferencesById(currentUser.value.id)
+        console.log('User preferences loaded:', userPreferences)
+        
+        // Parse new preferences data structure (with keys like "Destinos", "Actividades", etc.)
+        if (userPreferences && userPreferences.data && Array.isArray(userPreferences.data)) {
+          // Each preference object has keys like "Destinos", "Actividades", etc.
+          const processedPreferences = []
+          
+          userPreferences.data.forEach(prefObj => {
+            Object.keys(prefObj).forEach(key => {
+              if (key !== 'id' && key !== 'user_id' && key !== 'name_user') {
+                const values = prefObj[key]
+                if (Array.isArray(values)) {
+                  values.forEach(value => {
+                    processedPreferences.push({
+                      name: value,
+                      type: key,
+                      value: value
+                    })
+                  })
+                }
+              }
+            })
+          })
+          
+          preferences.value = processedPreferences
+        } else if (userPreferences && userPreferences.preferences && Array.isArray(userPreferences.preferences)) {
+          // Fallback to old structure
+          preferences.value = userPreferences.preferences.map(pref => ({
+            name: pref.name,
+            type: pref.type,
+            value: pref.name // Use name as value for display
+          }))
+        } else if (userPreferences && Array.isArray(userPreferences)) {
+          // Another fallback structure
+          preferences.value = userPreferences.map(pref => ({
+            name: pref.name,
+            type: pref.type,
+            value: pref.name
+          }))
+        } else {
+          preferences.value = []
+        }
+        
+        console.log('Processed preferences:', preferences.value)
+      } catch (preferencesError) {
+        console.log('No preferences found or error loading preferences:', preferencesError.message)
         preferences.value = []
       }
     }
 
-    // Calculate stats (mock for now)
-    stats.value.countries = recentTrips.value.length
-    stats.value.nights = recentTrips.value.reduce((total, trip) => {
-      return total + calculateDays(trip.start_date, trip.end_date)
-    }, 0)
-    stats.value.spent = recentTrips.value.length * 1000 // Mock calculation
+    // Load user groups
+    if (currentUser.value?.id) {
+      try {
+        const userGroupsData = await groupService.getGroupsByUser(currentUser.value.id)
+        console.log('User groups loaded:', userGroupsData)
+        
+        // Parse groups data structure
+        if (userGroupsData && Array.isArray(userGroupsData)) {
+          userGroups.value = userGroupsData
+        } else if (userGroupsData && userGroupsData.data && Array.isArray(userGroupsData.data)) {
+          userGroups.value = userGroupsData.data
+        } else {
+          userGroups.value = []
+        }
+        
+        console.log('Processed groups:', userGroups.value)
+      } catch (groupsError) {
+        console.log('No groups found or error loading groups:', groupsError.message)
+        userGroups.value = []
+      }
+    }
+
+    console.log('Profile loading completed successfully')
 
   } catch (err) {
     console.error('Error loading profile:', err)
-    error.value = err.response?.data?.detail || 'Failed to load profile'
+    error.value = err.response?.data?.detail || err.message || 'Failed to load profile'
   } finally {
     loading.value = false
   }
@@ -366,14 +509,25 @@ const loadProfile = async () => {
 const updateProfile = async () => {
   try {
     if (currentUser.value?.id) {
+      console.log('Updating profile with data:', editForm.value)
+      
       const updatedProfile = await userService.updateUser(currentUser.value.id, editForm.value)
+      console.log('Profile updated successfully:', updatedProfile)
+      
+      // Update local state
       userProfile.value = updatedProfile
+      
+      // Update auth store with new user data
       authStore.updateUser(updatedProfile)
+      
       showEditModal.value = false
+      
+      // Show success message (you could add a toast notification here)
+      console.log('Profile updated successfully!')
     }
   } catch (err) {
     console.error('Error updating profile:', err)
-    error.value = err.response?.data?.detail || 'Failed to update profile'
+    error.value = err.response?.data?.detail || err.message || 'Failed to update profile'
   }
 }
 
@@ -400,6 +554,16 @@ const addPreference = async () => {
 
 // Lifecycle
 onMounted(() => {
+  console.log('Profile component mounted')
+  console.log('Current user from auth store:', currentUser.value)
+  
+  if (!currentUser.value) {
+    console.log('No current user found, user might need to login')
+    error.value = 'Please log in to view your profile'
+    loading.value = false
+    return
+  }
+  
   loadProfile()
 })
 </script> 

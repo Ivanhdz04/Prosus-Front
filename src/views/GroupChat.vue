@@ -538,8 +538,8 @@ const loadUserGroups = async () => {
   } catch (error) {
     console.error('Error loading user groups:', error)
     availableGroups.value = [
-      { id: 'demo-group-1', name: 'Viaje a Barcelona', description: 'Grupo de viaje a Barcelona' },
-      { id: 'demo-group-2', name: 'Aventura en París', description: 'Explorando París juntos' }
+      { id: 'demo-group-1', group_id: 'demo-group-1', name: 'Viaje a Barcelona', description: 'Grupo de viaje a Barcelona' },
+      { id: 'demo-group-2', group_id: 'demo-group-2', name: 'Aventura en París', description: 'Explorando París juntos' }
     ]
     showGroupSelection.value = true
   } finally {
@@ -714,10 +714,20 @@ const initializeChat = async () => {
 
 // WebSocket functions
 const connectWebSocket = () => {
-  if (!selectedGroup.value || !currentUser.value) return
+  if (!selectedGroup.value || !currentUser.value) {
+    console.log('Cannot connect WebSocket - missing data:', {
+      selectedGroup: selectedGroup.value,
+      currentUser: currentUser.value
+    })
+    return
+  }
 
   // Usar group_id en lugar de id
-  websocketService.connect(selectedGroup.value.group_id)
+  const groupId = selectedGroup.value.group_id || selectedGroup.value.id
+  console.log('Connecting to WebSocket with group ID:', groupId)
+  console.log('Selected group:', selectedGroup.value)
+  
+  websocketService.connect(groupId)
   
   websocketService.on('connected', () => {
     websocketStatus.value = 'connected'

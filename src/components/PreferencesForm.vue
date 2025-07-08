@@ -308,25 +308,66 @@ const handleSubmit = async () => {
   error.value = ''
 
   try {
+    // Use the userName prop directly instead of making an API call
+    if (!props.userName) {
+      throw new Error('User name is required to save preferences.')
+    }
+
+    // Build preferences object with the prop userName
     const preferencesData = {
       user_id: props.userId,
-      name_user: props.userName,
+      name_user: props.userName, // Use the userName prop
       preferences: [
         ...selectedDestinations.value.map(dest => ({ name: dest, type: 'DESTINATION' })),
         ...selectedActivities.value.map(act => ({ name: act, type: 'ACTIVITIES' })),
         ...selectedPrice.value ? [{ name: selectedPrice.value, type: 'PRICE' }] : [],
         ...selectedAccommodations.value.map(acc => ({ name: acc, type: 'ACCOMMODATION' })),
-        ...selectedTransports.value.map(trans => ({ name: trans, type: 'TRASNPORT' })),
+        ...selectedTransports.value.map(trans => ({ name: trans, type: 'TRASNPORT' })), // Using TRASNPORT to match backend expectation
         ...selectedMotivations.value.map(mot => ({ name: mot, type: 'MOTIVATION' }))
       ]
     }
 
-    await preferencesService.createUserPreferences(preferencesData)
+    // Validate data structure
+    console.log('Validating preferences data structure...')
+    console.log('User ID:', preferencesData.user_id)
+    console.log('User Name:', preferencesData.name_user)
+    console.log('Preferences count:', preferencesData.preferences.length)
+    console.log('Full data structure:', JSON.stringify(preferencesData, null, 2))
+
+    // Check if preferences array is not empty
+    if (preferencesData.preferences.length === 0) {
+      throw new Error('At least one preference must be selected.')
+    }
+
+    // Validate each preference has required fields
+    for (const pref of preferencesData.preferences) {
+      if (!pref.name || !pref.type) {
+        throw new Error(`Invalid preference structure: ${JSON.stringify(pref)}`)
+      }
+    }
+
+    console.log('Saving preferences data:', preferencesData)
+    const result = await preferencesService.createUserPreferences(preferencesData)
+    console.log('Preferences saved successfully:', result)
+    
     emit('saved')
   } catch (err) {
-    error.value = err.response?.data?.detail || 'Error saving preferences. Please try again.'
+    console.error('Error saving preferences:', err)
+    
+    // Provide more specific error messages
+    if (err.code === 'ERR_NETWORK') {
+      error.value = 'Network error. Please check your connection and try again.'
+    } else if (err.response?.status === 400) {
+      error.value = `Bad request: ${err.response?.data?.detail || 'Invalid data format'}`
+    } else if (err.response?.status === 404) {
+      error.value = 'API endpoint not found. Please contact support.'
+    } else if (err.response?.status >= 500) {
+      error.value = 'Server error. Please try again later.'
+    } else {
+      error.value = err.message || 'Error saving preferences. Please try again.'
+    }
   } finally {
     loading.value = false
   }
 }
-</script> 
+</script>

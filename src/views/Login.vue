@@ -87,7 +87,7 @@
     <PreferencesForm
       v-if="showPreferencesForm"
       :user-id="authStore.user?.id"
-      :user-name="authStore.user?.name"
+      :user-name="authStore.user?.name || authStore.user?.username"
       @saved="handlePreferencesSaved"
     />
   </div>
@@ -130,4 +130,4 @@ const handlePreferencesSaved = () => {
   authStore.hidePreferencesForm()
   router.push('/')
 }
-</script> 
+</script>

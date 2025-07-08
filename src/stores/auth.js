@@ -23,14 +23,21 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     
     try {
-      const { user: userData } = await authService.login(email, password)
-      user.value = userData
+      // The API now returns a more complex object
+      const loginResponse = await authService.login(email, password)
+      
+      // Set user state from the 'local_user' object in the response
+      user.value = loginResponse.local_user
       isAuthenticated.value = true
       
-      // Check if user has preferences
-      await checkUserPreferences(userData.id)
+      // Save user to localStorage (this is already done in authService.login, but ensuring consistency)
+      localStorage.setItem('user', JSON.stringify(loginResponse.local_user))
       
-      return { success: true, user: userData }
+      // Check if user has preferences using the ID from local_user
+      await checkUserPreferences(loginResponse.local_user.id)
+      
+      // Return the local_user object for consistency
+      return { success: true, user: loginResponse.local_user }
     } catch (err) {
       error.value = err.response?.data?.detail || 'Login failed'
       return { success: false, error: error.value }
@@ -106,11 +113,26 @@ export const useAuthStore = defineStore('auth', () => {
   const checkUserPreferences = async (userId) => {
     try {
       const response = await preferencesService.getUserPreferencesById(userId)
-      hasPreferences.value = response.count > 0 && response.data.length > 0
-      showPreferencesForm.value = !hasPreferences.value
+      
+      // Check if response is empty or has no preferences data
+      const isEmpty = !response || 
+                     (Array.isArray(response) && response.length === 0) ||
+                     (response.data && Array.isArray(response.data) && response.data.length === 0) ||
+                     (response.count !== undefined && response.count === 0) ||
+                     Object.keys(response).length === 0
+      
+      hasPreferences.value = !isEmpty
+      showPreferencesForm.value = isEmpty
+      
+      console.log('Preferences check result:', { 
+        response, 
+        isEmpty, 
+        hasPreferences: hasPreferences.value, 
+        showForm: showPreferencesForm.value 
+      })
     } catch (err) {
       console.error('Error checking preferences:', err)
-      // If there's an error, assume no preferences and show form
+      // If there's an error (404, 500, etc.), assume no preferences and show form
       hasPreferences.value = false
       showPreferencesForm.value = true
     }
@@ -140,6 +162,18 @@ export const useAuthStore = defineStore('auth', () => {
     hasPreferences.value = true
   }
 
+  const saveUserPreferences = async (preferencesData) => {
+    try {
+      const result = await preferencesService.createUserPreferences(preferencesData)
+      hasPreferences.value = true
+      showPreferencesForm.value = false
+      return result
+    } catch (err) {
+      console.error('Error saving preferences in store:', err)
+      throw err
+    }
+  }
+
   return {
     // State
     user,
@@ -163,6 +197,7 @@ export const useAuthStore = defineStore('auth', () => {
     initializeAuth,
     clearError,
     updateUser,
-    hidePreferencesForm
+    hidePreferencesForm,
+    saveUserPreferences
   }
-}) 
+})

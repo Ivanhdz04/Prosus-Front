@@ -44,17 +44,17 @@ export const chatService = {
 
   // AI Chat
   async getAIMessages() {
-    const response = await api.get('/ia_chat/')
+    const response = await api.get('/ia_chat/ia_chat/')
     return response.data
   },
 
   async getAIMessageById(messageId) {
-    const response = await api.get(`/ia_chat/${messageId}`)
+    const response = await api.get(`/ia_chat/ia_chat/${messageId}`)
     return response.data
   },
 
   async getAIMessagesByUser(userId) {
-    const response = await api.get(`/ia_chat/user/${userId}`)
+    const response = await api.get(`/ia_chat/ia_chat/user/${userId}`)
     return response.data
   },
 
@@ -64,27 +64,27 @@ export const chatService = {
   },
 
   async getAIMessagesByUserAndGroup(userId, groupId) {
-    const response = await api.get(`/ia_chat/user/${userId}/group/${groupId}`)
+    const response = await api.get(`/ia_chat/ia_chat/user/${userId}/group/${groupId}`)
     return response.data
   },
 
   async sendAIMessage(messageData) {
-    const response = await api.post('/ia_chat/', messageData)
+    const response = await api.post('/ia_chat/ia_chat/', messageData)
     return response.data
   },
 
   async updateAIMessage(messageId, messageData) {
-    const response = await api.put(`/ia_chat/${messageId}`, messageData)
+    const response = await api.put(`/ia_chat/ia_chat/${messageId}`, messageData)
     return response.data
   },
 
   async deleteAIMessage(messageId) {
-    const response = await api.delete(`/ia_chat/${messageId}`)
+    const response = await api.delete(`/ia_chat/ia_chat/${messageId}`)
     return response.data
   },
 
   async toggleAIMessageStatus(messageId) {
-    const response = await api.patch(`/ia_chat/${messageId}/toggle`)
+    const response = await api.patch(`/ia_chat/ia_chat/${messageId}/toggle`)
     return response.data
   },
 
